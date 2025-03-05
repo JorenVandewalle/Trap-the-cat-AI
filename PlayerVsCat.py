@@ -3,11 +3,8 @@ import random
 import heapq
 
 
-# Code print voorlopig een arry af van het speelvelt als je op S klikt, dit kan gebruikt worden voor naar een AI te sturen. 
-
-
-
-
+# Code print voorlopig een arry af van het speelvelt als je op S klikt, dit kan gebruikt worden voor naar een AI te sturen.
+# Als je op Z klikt print je alle mogelijke zetten , kan gebruikt worden voor de AI 
 
 
 # Constants
@@ -126,6 +123,17 @@ class Game:
         game_state[self.cat_pos[0]][self.cat_pos[1]] = 2
         return game_state
     
+    def get_possible_actions(self):
+        """Returns a list of all possible positions to block in the current game state."""
+        actions = []
+        for row in range(ROWS):
+            for col in range(COLS):
+                # Alleen vakken die nog niet geblokkeerd zijn (0 of 1) kunnen worden geblokkeerd
+                if self.grid[row][col] == 0:  # Leeg vak of kat
+                    actions.append((row, col))  # Voeg de coördinaten toe als mogelijke actie
+        return actions
+
+    
     def run(self):
         while self.running:
             for event in pygame.event.get():
@@ -134,13 +142,18 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                     self.handle_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:  # Reset the game when 'R' is pressed
+                    if event.key == pygame.K_r:  # Reset de game als 'R' wordt ingedrukt
                         self.reset_game()
-                    elif event.key == pygame.K_s:  # Save the grid to AI (use 'S' key)
+                    elif event.key == pygame.K_s:  # Print de game state als 'S' wordt ingedrukt
                         game_state = self.get_game_state()
                         print("Game State (2D Array for AI):")
                         for row in game_state:
-                            print(row)  # Print the 2D array in the terminal
+                            print(row)  # Print de 2D-array in de terminal
+                    elif event.key == pygame.K_z:  # Print mogelijke acties als 'Z' wordt ingedrukt
+                        possible_actions = self.get_possible_actions()
+                        print("Mogelijke Acties (Te blokkeren vakken):")
+                        for action in possible_actions:
+                            print(action)  # Print de mogelijke acties in de terminal
 
             self.draw_grid()
             if self.game_over:
@@ -148,6 +161,7 @@ class Game:
                 text = font.render('Game Over! Press R to restart', True, BLACK)
                 self.screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 - text.get_height() // 2))
                 pygame.display.flip()
+
         pygame.quit()
 
 if __name__ == "__main__":
