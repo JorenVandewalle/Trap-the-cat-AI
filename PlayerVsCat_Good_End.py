@@ -2,10 +2,8 @@ import pygame
 import random
 import heapq
 
-
-# Code print voorlopig een arry af van het speelvelt als je op S klikt, dit kan gebruikt worden voor naar een AI te sturen. 
-
-
+# In deze code eindigt het spel maar als de Kat echt geen enkele andere plek heeft om naar toe te gaan.
+# Maar dit zou denk ik teveel extra werk zijn voor de AI
 
 
 
@@ -32,10 +30,11 @@ class Game:
         self.cat_pos = (ROWS // 2, COLS // 2)
         self.running = True
         self.game_over = False
+        self.cat_trapped = False  # Track if the cat is already trapped
         self.init_blocks()
 
     def init_blocks(self):
-        for _ in range(20):
+        for _ in range(10):
             while True:
                 row, col = random.randint(0, ROWS - 1), random.randint(0, COLS - 1)
                 if (row, col) != self.cat_pos and self.grid[row][col] == 0:
@@ -61,22 +60,49 @@ class Game:
                 (x + HEX_SIZE * 0.5, y + HEX_SIZE), (x, y + HEX_SIZE * 0.75), (x, y + HEX_SIZE * 0.25)]
     
     def move_cat(self):
+        # Check if the cat has escaped
         if self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1:
             self.game_over = True
             print("Cat escaped! Game Over!")
             return
         
-        path = self.a_star(self.cat_pos)
-        if len(path) > 1:
-            next_pos = path[1]
-            if self.is_valid_move(next_pos) and self.is_adjacent(self.cat_pos, next_pos):
-                print(f"Cat moving from {self.cat_pos} to {next_pos}")
+        # Use A* to find the best path if the cat is not already trapped
+        if not self.cat_trapped:
+            path = self.a_star(self.cat_pos)
+            if len(path) > 1:
+                next_pos = path[1]
+                if self.is_valid_move(next_pos) and self.is_adjacent(self.cat_pos, next_pos):
+                    print(f"Cat moving from {self.cat_pos} to {next_pos}")
+                    self.cat_pos = next_pos
+                else:
+                    print(f"Invalid move attempted: {next_pos}")
+            else:
+                # If A* finds no path, the cat is trapped
+                print("Cat is trapped! Switching to random moves.")
+                self.cat_trapped = True
+        
+        # If the cat is trapped, make random moves
+        if self.cat_trapped:
+            valid_moves = self.get_valid_moves(self.cat_pos)
+            if valid_moves:
+                next_pos = random.choice(valid_moves)
+                print(f"Cat moving randomly from {self.cat_pos} to {next_pos}")
                 self.cat_pos = next_pos
             else:
-                print(f"Invalid move attempted: {next_pos}")
-        else:
-            print("No valid path found for the cat!")
-            self.game_over = True
+                # No valid moves left, game over
+                self.game_over = True
+                print("Cat is completely trapped! Game Over!")
+    
+    def get_valid_moves(self, pos):
+        """Get all valid moves for the cat from the current position."""
+        row, col = pos
+        directions = DIRECTIONS_EVEN if row % 2 == 0 else DIRECTIONS_ODD
+        valid_moves = []
+        for d in directions:
+            nr, nc = row + d[0], col + d[1]
+            if self.is_valid_move((nr, nc)):
+                valid_moves.append((nr, nc))
+        return valid_moves
     
     def is_valid_move(self, pos):
         row, col = pos
@@ -117,14 +143,6 @@ class Game:
                         self.grid[row][col] = 1
                         self.move_cat()
                     return
-                
-    def get_game_state(self):
-        """Returns the current game state as a 2D array (11x11)."""
-        # Copying the current grid to avoid modification outside the class
-        game_state = [row[:] for row in self.grid]
-        # Mark the cat position with a special value (e.g., 2) in the state array
-        game_state[self.cat_pos[0]][self.cat_pos[1]] = 2
-        return game_state
     
     def run(self):
         while self.running:
@@ -133,15 +151,9 @@ class Game:
                     self.running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                     self.handle_click(event.pos)
-                elif event.type == pygame.KEYDOWN:
+                elif event.type == pygame.KEYDOWN and self.game_over:
                     if event.key == pygame.K_r:  # Reset the game when 'R' is pressed
                         self.reset_game()
-                    elif event.key == pygame.K_s:  # Save the grid to AI (use 'S' key)
-                        game_state = self.get_game_state()
-                        print("Game State (2D Array for AI):")
-                        for row in game_state:
-                            print(row)  # Print the 2D array in the terminal
-
             self.draw_grid()
             if self.game_over:
                 font = pygame.font.SysFont(None, 55)
