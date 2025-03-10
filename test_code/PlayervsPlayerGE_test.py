@@ -2,11 +2,8 @@ import pygame
 import random
 import heapq
 
-# Constants voor het venster
+# Constants voor het venster en kleuren
 WIDTH, HEIGHT = 1200, 1000
-ROWS, COLS = 11, 11
-
-# Kleur definities
 WHITE, BLACK, GRAY, BLUE = (255, 255, 255), (0, 0, 0), (200, 200, 200), (50, 50, 255)
 
 # Richtingen voor hexagonale beweging (afhankelijk van even/oneven rijen)
@@ -19,12 +16,18 @@ class Game:
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption("Trap the Cat")
         
-        # Stel de linker zijbalk in (voor instructies) en bereken de beschikbare ruimte voor het grid
+        # Instellingen voor de linker zijbalk en het speelveld (grid)
         self.left_sidebar_width = 300
         self.game_area_width = WIDTH - self.left_sidebar_width
-        self.hex_size = self.game_area_width // (COLS + 1)
         
-        # Load the cat image and scale it to 66% of the hex cell size
+        # Standaard gridgrootte (kan aangepast worden met toetsen 4,5,6)
+        self.rows = 11
+        self.cols = 11
+        
+        # Bereken de hexagonale celgrootte op basis van de beschikbare breedte
+        self.hex_size = self.game_area_width // (self.cols + 1)
+        
+        # Laad de kattenafbeelding en schaal deze naar 66% van de hex celgrootte
         self.cat_image = pygame.image.load("images/cat_icon4.png").convert_alpha()
         scale = int(self.hex_size * 0.66)
         self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
@@ -34,19 +37,26 @@ class Game:
         self.reset_game()
 
     def reset_game(self):
-        self.grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
-        self.cat_pos = (ROWS // 2, COLS // 2)
+        # Update de hex_size op basis van de huidige gridgrootte
+        self.hex_size = self.game_area_width // (self.cols + 1)
+        # Schaal de kat opnieuw (pas eventueel de factor aan als je de afbeelding groter of kleiner wilt)
+        scale = int(self.hex_size * 0.66)
+        self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
+        
+        self.grid = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
+        self.cat_pos = (self.rows // 2, self.cols // 2)
         self.game_over = False
-        self.cat_trapped = False  # Houdt bij of de kat al vastzit
-        self.first_move = False   # Geeft aan of er al een zet is gedaan
-        self.win = None           # True als gewonnen, False als verloren
+        self.cat_trapped = False   # Houdt bij of de kat vastzit
+        self.first_move = False    # Geeft aan of er al een zet is gedaan
+        self.win = None            # True als gewonnen, False als verloren
         self.init_blocks()
 
     def init_blocks(self):
-        # Plaats de vooraf ingestelde blokken
+        # Plaats het vooraf ingestelde aantal blokken willekeurig
         for _ in range(self.num_blocks):
             while True:
-                row, col = random.randint(0, ROWS - 1), random.randint(0, COLS - 1)
+                row = random.randint(0, self.rows - 1)
+                col = random.randint(0, self.cols - 1)
                 if (row, col) != self.cat_pos and self.grid[row][col] == 0:
                     self.grid[row][col] = 1
                     break
@@ -55,8 +65,8 @@ class Game:
         """
         Berekent de offsets zodat het grid gecentreerd staat binnen het game-gebied (rechts van de zijbalk).
         """
-        grid_draw_width = COLS * self.hex_size + self.hex_size // 2
-        grid_draw_height = ROWS * self.hex_size
+        grid_draw_width = self.cols * self.hex_size + self.hex_size // 2
+        grid_draw_height = self.rows * self.hex_size
         grid_offset_x = self.left_sidebar_width + (self.game_area_width - grid_draw_width) // 2
         grid_offset_y = (HEIGHT - grid_draw_height) // 2
         return grid_offset_x, grid_offset_y
@@ -72,20 +82,20 @@ class Game:
         ]
     
     def draw_instructions(self):
-        """Tekent de instructies/controls in de linker zijbalk."""
+        """Tekent de instructies en huidige instellingen in de linker zijbalk."""
         font = pygame.font.SysFont(None, 24)
         instructions = [
             "Controls:",
             "Click: plaats blok",
             "R: reset spel",
-            "1: 10 blokken",
-            "2: 20 blokken",
-            "3: 30 blokken",
+            "1: 10 blokken, 2: 20 blokken, 3: 30 blokken",
+            "4: grid 7x7, 5: grid 11x11, 6: grid 15x15",
             "",
             "Goal:",
             "Trap de Kat!",
             "",
-            f"Huidig aantal blokken: {self.num_blocks}"
+            f"Blokken: {self.num_blocks}",
+            f"Grid: {self.rows}x{self.cols}"
         ]
         x = 10
         y = 10
@@ -95,38 +105,34 @@ class Game:
             y += text.get_height() + 5
 
     def draw_grid(self):
-        # Vul het scherm met wit
         self.screen.fill(WHITE)
-        # Teken instructies in de linker zijbalk
         self.draw_instructions()
         
         grid_offset_x, grid_offset_y = self.get_grid_offsets()
-        
-        # Teken het grid in het rechtergedeelte
-        for row in range(ROWS):
-            for col in range(COLS):
+        # Teken het grid (speelveld) in het rechtergedeelte
+        for row in range(self.rows):
+            for col in range(self.cols):
                 x = grid_offset_x + col * self.hex_size + (row % 2) * (self.hex_size // 2)
                 y = grid_offset_y + row * self.hex_size
                 color = GRAY if self.grid[row][col] == 1 else WHITE
                 pygame.draw.polygon(self.screen, color, self.hexagon_points(x, y))
                 pygame.draw.polygon(self.screen, BLACK, self.hexagon_points(x, y), 1)
         
-        # Teken de kat met het geladen plaatje
+        # Teken de kat met de geladen afbeelding
         cat_x = grid_offset_x + self.cat_pos[1] * self.hex_size + (self.cat_pos[0] % 2) * (self.hex_size // 2)
         cat_y = grid_offset_y + self.cat_pos[0] * self.hex_size
         image_rect = self.cat_image.get_rect(center=(cat_x + self.hex_size // 2, cat_y + self.hex_size // 2))
         self.screen.blit(self.cat_image, image_rect)
 
     def move_cat(self):
-        # Als de kat aan de rand staat, ontsnapt hij en is het spel verloren
-        if (self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or
-            self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1):
+        # Als de kat aan de rand staat, ontsnapt hij => verlies
+        if (self.cat_pos[0] == 0 or self.cat_pos[0] == self.rows - 1 or
+            self.cat_pos[1] == 0 or self.cat_pos[1] == self.cols - 1):
             self.game_over = True
             self.win = False
             print("Cat escaped! Game Over!")
             return
         
-        # Gebruik A* om het beste pad te vinden als de kat nog niet vastzit
         if not self.cat_trapped:
             path = self.a_star(self.cat_pos)
             if len(path) > 1:
@@ -140,7 +146,6 @@ class Game:
                 print("Cat is trapped! Switching to random moves.")
                 self.cat_trapped = True
         
-        # Als de kat vastzit, maak een willekeurige geldige zet
         if self.cat_trapped:
             valid_moves = self.get_valid_moves(self.cat_pos)
             if valid_moves:
@@ -164,7 +169,7 @@ class Game:
     
     def is_valid_move(self, pos):
         row, col = pos
-        return 0 <= row < ROWS and 0 <= col < COLS and self.grid[row][col] == 0
+        return 0 <= row < self.rows and 0 <= col < self.cols and self.grid[row][col] == 0
     
     def is_adjacent(self, pos1, pos2):
         row, col = pos1
@@ -173,7 +178,7 @@ class Game:
     
     def a_star(self, start):
         def heuristic(pos):
-            return min(pos[0], ROWS - 1 - pos[0], pos[1], COLS - 1 - pos[1])
+            return min(pos[0], self.rows - 1 - pos[0], pos[1], self.cols - 1 - pos[1])
         
         open_set = [(heuristic(start), 0, start, [])]
         visited = set()
@@ -182,8 +187,8 @@ class Game:
             if current in visited:
                 continue
             visited.add(current)
-            if (current[0] == 0 or current[0] == ROWS - 1 or
-                current[1] == 0 or current[1] == COLS - 1):
+            if (current[0] == 0 or current[0] == self.rows - 1 or
+                current[1] == 0 or current[1] == self.cols - 1):
                 return path + [current]
             directions = DIRECTIONS_EVEN if current[0] % 2 == 0 else DIRECTIONS_ODD
             for d in directions:
@@ -195,18 +200,18 @@ class Game:
     
     def handle_click(self, pos):
         grid_offset_x, grid_offset_y = self.get_grid_offsets()
-        for row in range(ROWS):
-            for col in range(COLS):
+        for row in range(self.rows):
+            for col in range(self.cols):
                 x = grid_offset_x + col * self.hex_size + (row % 2) * (self.hex_size // 2)
                 y = grid_offset_y + row * self.hex_size
                 hex_points = self.hexagon_points(x, y)
                 if pygame.draw.polygon(self.screen, WHITE, hex_points).collidepoint(pos):
                     if (row, col) != self.cat_pos and self.grid[row][col] == 0:
                         self.grid[row][col] = 1
-                        self.first_move = True  # Een zet is geplaatst
+                        self.first_move = True
                         self.move_cat()
                     return
-
+    
     def run(self):
         clock = pygame.time.Clock()
         while self.running:
@@ -216,11 +221,10 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                     self.handle_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
-                    # Reset het spel met 'R'
                     if event.key == pygame.K_r:
                         self.reset_game()
-                    # Wijzig het aantal blokken zolang er nog geen zet is gedaan
                     elif not self.first_move:
+                        # Blokken instellen
                         if event.key == pygame.K_1:
                             self.num_blocks = 10
                             print("Aantal blokken ingesteld op 10")
@@ -233,9 +237,21 @@ class Game:
                             self.num_blocks = 30
                             print("Aantal blokken ingesteld op 30")
                             self.reset_game()
+                        # Gridgrootte instellen
+                        elif event.key == pygame.K_4:
+                            self.rows, self.cols = 7, 7
+                            print("Grid size ingesteld op 7x7")
+                            self.reset_game()
+                        elif event.key == pygame.K_5:
+                            self.rows, self.cols = 11, 11
+                            print("Grid size ingesteld op 11x11")
+                            self.reset_game()
+                        elif event.key == pygame.K_6:
+                            self.rows, self.cols = 15, 15
+                            print("Grid size ingesteld op 15x15")
+                            self.reset_game()
             
             self.draw_grid()
-            # Als het spel voorbij is, toon het juiste bericht
             if self.game_over:
                 font = pygame.font.SysFont(None, 55)
                 if self.win:
@@ -246,7 +262,7 @@ class Game:
                 self.screen.blit(text, ((WIDTH - text.get_width()) // 2,
                                         (HEIGHT - text.get_height()) // 2))
             pygame.display.flip()
-            clock.tick(30)  # Limiteer tot 30 FPS
+            clock.tick(30)
         pygame.quit()
 
 if __name__ == "__main__":
