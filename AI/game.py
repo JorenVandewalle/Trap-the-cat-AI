@@ -2,8 +2,8 @@ import pygame
 import random
 import heapq
 import numpy as np
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 
 # Constants
 WIDTH, HEIGHT = 600, 600
@@ -27,6 +27,7 @@ class Game:
         self.cat_pos = (ROWS // 2, COLS // 2)
         self.running = True
         self.game_over = False
+        self.trapped = False
         self.init_blocks()
 
     def init_blocks(self):
@@ -37,15 +38,16 @@ class Game:
                     self.grid[row][col] = 1
                     break
 
+
     def hexagon_points(self, x, y):
         """Berekent de hoekpunten van een hexagoon op positie (x, y)."""
         return [
-            (x + HEX_SIZE * 0.5, y),  # Rechterbovenhoek
-            (x + HEX_SIZE, y + HEX_SIZE * 0.25),  # Rechterkant boven
-            (x + HEX_SIZE, y + HEX_SIZE * 0.75),  # Rechterkant onder
-            (x + HEX_SIZE * 0.5, y + HEX_SIZE),  # Linkerbenedenhoek
-            (x, y + HEX_SIZE * 0.75),  # Linkerkant onder
-            (x, y + HEX_SIZE * 0.25),  # Linkerkant boven
+            (x + HEX_SIZE * 0.5, y),
+            (x + HEX_SIZE, y + HEX_SIZE * 0.25),
+            (x + HEX_SIZE, y + HEX_SIZE * 0.75),
+            (x + HEX_SIZE * 0.5, y + HEX_SIZE),
+            (x, y + HEX_SIZE * 0.75),
+            (x, y + HEX_SIZE * 0.25),
         ]
 
     def draw_grid(self):
@@ -69,33 +71,45 @@ class Game:
         return game_state
 
     def get_possible_actions(self):
-        """Returns a list of all possible positions to block in the current game state."""
-        actions = []
-        for row in range(ROWS):
-            for col in range(COLS):
-                # Alleen vakken die nog niet geblokkeerd zijn (0 of 1) kunnen worden geblokkeerd
-                if self.grid[row][col] == 0:  # Leeg vak of kat
-                    actions.append((row, col))  # Voeg de coördinaten toe als mogelijke actie
-        return actions
+        """Geeft alleen niet-geblokkeerde cellen terug, exclusief katpositie"""
+        return [
+            (row, col) 
+            for row in range(ROWS) 
+            for col in range(COLS) 
+            if self.grid[row][col] == 0 and (row, col) != self.cat_pos
+        ]
 
-    
-    def move_cat(self):
-        if self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1:
+    def check_game_over(self):
+        # Als de kat op de rand staat, ontsnapt hij
+        if (self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or 
+            self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1):
             self.game_over = True
-            print("Cat escaped! Game Over!")
-            return
-        
+            #print("Cat escaped! Game Over!")
+        # Als er geen geldige zetten meer zijn (en dus geen pad), is de kat gevangen
+        elif len(self.a_star(self.cat_pos)) == 0:
+            self.game_over = True
+            self.trapped = True
+            print("Cat trapped! Game Over!")
+
+    def move_cat(self):
+        # Bepaal de kortste route naar de rand met A*
         path = self.a_star(self.cat_pos)
         if len(path) > 1:
             next_pos = path[1]
+            # Controleer of de volgende positie geldig is en aangrenzend ligt
             if self.is_valid_move(next_pos) and self.is_adjacent(self.cat_pos, next_pos):
-                # print(f"Cat moving from {self.cat_pos} to {next_pos}")
+                #print(f"Cat moving from {self.cat_pos} to {next_pos}")
                 self.cat_pos = next_pos
             else:
                 print(f"Invalid move attempted: {next_pos}")
         else:
             print("No valid path found for the cat!")
             self.game_over = True
+            self.trapped = True
+            return
+
+        # Na de zet: controleer of de kat op de rand staat of gevangen zit
+        self.check_game_over()
 
     def is_valid_move(self, pos):
         row, col = pos
@@ -117,6 +131,7 @@ class Game:
             if current in visited:
                 continue
             visited.add(current)
+            # Als current op de rand ligt: we hebben een pad gevonden
             if current[0] == 0 or current[0] == ROWS - 1 or current[1] == 0 or current[1] == COLS - 1:
                 return path + [current]
             directions = DIRECTIONS_EVEN if current[0] % 2 == 0 else DIRECTIONS_ODD
@@ -131,73 +146,82 @@ class TrapTheCatEnv(gym.Env):
         super(TrapTheCatEnv, self).__init__()
         self.game = game
         self.action_space = spaces.Discrete(ROWS * COLS)
-        self.observation_space = spaces.Box(low=0, high=2, shape=(ROWS, COLS), dtype=np.int8)
+        self.observation_space = spaces.Dict({
+            "grid": spaces.Box(low=0, high=2, shape=(ROWS, COLS)), 
+            "cat_pos": spaces.Box(low=0, high=10, shape=(2,), dtype=np.int8)
+        })
 
     def seed(self, seed=None):
         random.seed(seed)
         np.random.seed(seed)
 
     def reset(self, seed=None, options=None):
-        if seed is not None:
-            self.seed(seed)
-        self.game.reset_game()  # Reset de interne game status
+        self.game.reset_game()
+        observation = {
+            "grid": np.array(self.game.grid, dtype=np.int8),
+            "cat_pos": np.array(self.game.cat_pos, dtype=np.int8)
+        }
+        return observation, {}
 
-        observation = np.array(self.game.get_game_state(), dtype=np.int8)
-        #print("Game reset. Initial observation:")  # Debugging
-        #print(observation)  # Debugging
-
-        info = {}
-        return observation, info
-
-    
     def hexagon_points(self, x, y):
-        return [(x + HEX_SIZE * 0.5, y), (x + HEX_SIZE, y + HEX_SIZE * 0.25), (x + HEX_SIZE, y + HEX_SIZE * 0.75),
-            (x + HEX_SIZE * 0.5, y + HEX_SIZE), (x, y + HEX_SIZE * 0.75), (x, y + HEX_SIZE * 0.25)]
-
+        return [
+            (x + HEX_SIZE * 0.5, y),
+            (x + HEX_SIZE, y + HEX_SIZE * 0.25),
+            (x + HEX_SIZE, y + HEX_SIZE * 0.75),
+            (x + HEX_SIZE * 0.5, y + HEX_SIZE),
+            (x, y + HEX_SIZE * 0.75),
+            (x, y + HEX_SIZE * 0.25)
+        ]
     
     def step(self, action):
         row, col = divmod(action, COLS)
-
-        # Haal de mogelijke acties op
         possible_actions = self.game.get_possible_actions()
-        
-        if (row, col) not in possible_actions:
-            print(f"Invalid action chosen by AI: ({row}, {col})")  # Debugging
-            return np.array(self.game.get_game_state(), dtype=np.int8), -500, True, False, {}
-
-        # Blokkeer de gekozen positie
-        self.game.grid[row][col] = 1
-        old_cat_pos = self.game.cat_pos
-        self.game.move_cat()
-        new_cat_pos = self.game.cat_pos
-
-        terminated = self.game.game_over
+        terminated = False
         truncated = False
-        
-        # Nieuwe beloningsstrategie
-        old_dist = min(old_cat_pos[0], ROWS - 1 - old_cat_pos[0], old_cat_pos[1], COLS - 1 - old_cat_pos[1])
-        new_dist = min(new_cat_pos[0], ROWS - 1 - new_cat_pos[0], new_cat_pos[1], COLS - 1 - new_cat_pos[1])
-        
-        reward = 10  # Basisbeloning voor een geldige zet
-        
+        info = {}
+
+        if (row, col) not in possible_actions:
+            return (
+                {"grid": np.array(self.game.grid), "cat_pos": np.array(self.game.cat_pos)},
+                -1000,
+                False,
+                False,
+                {}
+            )
+
+        self.game.grid[row][col] = 1
+        old_pos = self.game.cat_pos
+        old_dist = min(old_pos[0], ROWS-1 - old_pos[0], old_pos[1], COLS-1 - old_pos[1])
+        self.game.move_cat()
+        new_pos = self.game.cat_pos
+        new_dist = min(new_pos[0], ROWS-1 - new_pos[0], new_pos[1], COLS-1 - new_pos[1])
+
+        reward = 0
         if new_dist < old_dist:
-            reward -= 50  # Straf als de kat dichter bij de rand komt
+            reward -= 100 + (old_dist - new_dist) * 20
         elif new_dist > old_dist:
-            reward += 50  # Beloning als de kat verder van de rand blijft
+            reward += 50 + (new_dist - old_dist) * 10
 
-        if terminated:
-            if self.game.cat_pos[0] in [0, ROWS-1] or self.game.cat_pos[1] in [0, COLS-1]:
-                print("Cat escaped! Game over.")
-                reward = -100  # Grote straf als de kat ontsnapt
+        if self.game.game_over:
+            terminated = True
+            if self.game.trapped:
+                reward += 5000
             else:
-                print("Cat trapped! Game over.")
-                reward = 1000  # Grote beloning als de kat vastzit
+                reward -= 2000
 
-        return np.array(self.game.get_game_state(), dtype=np.int8), reward, terminated, truncated, {}
+        info = {
+            "cat_pos": new_pos,
+            "old_dist": old_dist,
+            "new_dist": new_dist
+        }
 
-
-
-
+        return (
+            {"grid": np.array(self.game.grid), "cat_pos": np.array(self.game.cat_pos)},
+            reward,
+            terminated,
+            truncated,
+            info
+        )
 
     def render(self, mode="human"):
         self.game.draw_grid()

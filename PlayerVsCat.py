@@ -57,15 +57,19 @@ class Game:
         return [(x + HEX_SIZE * 0.5, y), (x + HEX_SIZE, y + HEX_SIZE * 0.25), (x + HEX_SIZE, y + HEX_SIZE * 0.75),
                 (x + HEX_SIZE * 0.5, y + HEX_SIZE), (x, y + HEX_SIZE * 0.75), (x, y + HEX_SIZE * 0.25)]
     
-    def move_cat(self):
-        if self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1:
+    def check_game_over(self):
+        # Controleer of de kat op een randenpositie staat nadat hij is verplaatst
+        if (self.cat_pos[0] == 0 or self.cat_pos[0] == ROWS - 1 or 
+            self.cat_pos[1] == 0 or self.cat_pos[1] == COLS - 1):
             self.game_over = True
             print("Cat escaped! Game Over!")
-            return
-        
+
+    def move_cat(self):
+        # Bepaal de kortste route naar de uitgang met A*
         path = self.a_star(self.cat_pos)
         if len(path) > 1:
             next_pos = path[1]
+            # Controleer of de volgende positie geldig is en aangrenzend ligt
             if self.is_valid_move(next_pos) and self.is_adjacent(self.cat_pos, next_pos):
                 print(f"Cat moving from {self.cat_pos} to {next_pos}")
                 self.cat_pos = next_pos
@@ -74,6 +78,10 @@ class Game:
         else:
             print("No valid path found for the cat!")
             self.game_over = True
+            return
+
+        # Na de zet: controleer of de kat op de rand staat
+        self.check_game_over()
     
     def is_valid_move(self, pos):
         row, col = pos
