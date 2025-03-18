@@ -1,13 +1,6 @@
 import pygame
 import random
 import heapq
-import sys
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import collections
-import os
 
 # Constants voor het venster en kleuren
 WIDTH, HEIGHT = 1200, 1000
@@ -18,50 +11,49 @@ DIRECTIONS_EVEN = [(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)]
 DIRECTIONS_ODD  = [(-1, 0), (-1, 1), (0, -1), (0, 1), (1, 0), (1, 1)]
 
 class Game:
-    def __init__(self):
+    def __init__(self, ai_mode=False):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption("Trap the Cat")
+        caption = "Trap the Cat - AI Block Placer" if ai_mode else "Trap the Cat"
+        pygame.display.set_caption(caption)
         
         # Instellingen voor de linker zijbalk en het speelveld (grid)
         self.left_sidebar_width = 300
         self.game_area_width = WIDTH - self.left_sidebar_width
         
-        # Standaard gridgrootte (aanpasbaar met toetsen 4,5,6)
+        # Standaard gridgrootte (kan aangepast worden met toetsen 4,5,6)
         self.rows = 11
         self.cols = 11
         
         # Bereken de hexagonale celgrootte op basis van de beschikbare breedte
         self.hex_size = self.game_area_width // (self.cols + 1)
         
-        # Probeer de kattenafbeelding te laden, zo niet, gebruik een fallback (blauwe cirkel)
-        cat_img_path = os.path.join("images", "cat_icon4.png")
-        if os.path.exists(cat_img_path):
-            self.cat_image = pygame.image.load(cat_img_path).convert_alpha()
-        else:
-            print("Image 'cat_icon4.png' niet gevonden, gebruik fallback.")
-            self.cat_image = None
-        
-        if self.cat_image:
-            scale = int(self.hex_size * 0.66)
-            self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
+        # Laad de kattenafbeelding en schaal deze naar 66% van de hex celgrootte
+        try:
+            self.cat_image = pygame.image.load("images/cat_icon4.png").convert_alpha()
+        except Exception as e:
+            print("Fout bij laden van afbeelding. Zorg dat 'images/cat_icon4.png' bestaat.", e)
+            raise e
+        scale = int(self.hex_size * 0.66)
+        self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
         
         self.num_blocks = 10  # Standaard aantal blokken
         self.running = True
+        self.ai_mode = ai_mode
         self.reset_game()
 
     def reset_game(self):
+        # Update de hex_size op basis van de huidige gridgrootte
         self.hex_size = self.game_area_width // (self.cols + 1)
-        if self.cat_image:
-            scale = int(self.hex_size * 0.66)
-            self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
+        scale = int(self.hex_size * 0.66)
+        self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
         
         self.grid = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
         self.cat_pos = (self.rows // 2, self.cols // 2)
         self.game_over = False
-        self.cat_trapped = False  # Houdt bij of de kat vastzit
-        self.first_move = False   # Geeft aan of er al een zet is gedaan
-        self.win = None           # True als gewonnen, False als verloren
+        self.cat_trapped = False   # Houdt bij of de kat vastzit
+        self.first_move = False    # Geeft aan of er al een zet is gedaan
+        self.win = None            # True als gewonnen, False als verloren
         self.init_blocks()
 
     def init_blocks(self):
@@ -75,6 +67,9 @@ class Game:
                     break
 
     def get_grid_offsets(self):
+        """
+        Berekent de offsets zodat het grid gecentreerd staat binnen het game-gebied (rechts van de zijbalk).
+        """
         grid_draw_width = self.cols * self.hex_size + self.hex_size // 2
         grid_draw_height = self.rows * self.hex_size
         grid_offset_x = self.left_sidebar_width + (self.game_area_width - grid_draw_width) // 2
@@ -92,20 +87,23 @@ class Game:
         ]
     
     def draw_instructions(self):
+        """Tekent de instructies en huidige instellingen in de linker zijbalk."""
         font = pygame.font.SysFont(None, 24)
         instructions = [
-            "Controls (Keypad):",
-            "1: 10 blokken",
-            "2: 20 blokken",
-            "3: 30 blokken",
-            "4: grid 7x7",
-            "5: grid 11x11",
-            "6: grid 15x15",
+            "Controls:",
+            "Click: plaats blok (human mode)",
             "R: reset spel",
-            "A: start AI solving",
+            "1: 10 blokken, 2: 20 blokken, 3: 30 blokken",
+            "4: grid 7x7, 5: grid 11x11, 6: grid 15x15",
+            "A: toggle AI mode",
             "",
             "Goal:",
-            "Trap de Kat!"
+            "Trap de Kat!",
+            "",
+            f"Blokken: {self.num_blocks}",
+            f"Grid: {self.rows}x{self.cols}",
+            "",
+            f"AI Mode: {'Aan' if self.ai_mode else 'Uit'}"
         ]
         x = 10
         y = 10
@@ -119,6 +117,7 @@ class Game:
         self.draw_instructions()
         
         grid_offset_x, grid_offset_y = self.get_grid_offsets()
+        # Teken het grid (speelveld) in het rechtergedeelte
         for row in range(self.rows):
             for col in range(self.cols):
                 x = grid_offset_x + col * self.hex_size + (row % 2) * (self.hex_size // 2)
@@ -127,17 +126,17 @@ class Game:
                 pygame.draw.polygon(self.screen, color, self.hexagon_points(x, y))
                 pygame.draw.polygon(self.screen, BLACK, self.hexagon_points(x, y), 1)
         
-        # Teken de kat: als afbeelding beschikbaar, anders fallback naar cirkel.
+        # Teken de kat met de geladen afbeelding
         cat_x = grid_offset_x + self.cat_pos[1] * self.hex_size + (self.cat_pos[0] % 2) * (self.hex_size // 2)
         cat_y = grid_offset_y + self.cat_pos[0] * self.hex_size
-        if self.cat_image:
-            image_rect = self.cat_image.get_rect(center=(cat_x + self.hex_size // 2, cat_y + self.hex_size // 2))
-            self.screen.blit(self.cat_image, image_rect)
-        else:
-            pygame.draw.circle(self.screen, BLUE, (cat_x + self.hex_size // 2, cat_y + self.hex_size // 2), self.hex_size // 3)
+        image_rect = self.cat_image.get_rect(center=(cat_x + self.hex_size // 2, cat_y + self.hex_size // 2))
+        self.screen.blit(self.cat_image, image_rect)
 
     def move_cat(self):
-        # Als de kat aan de rand staat, ontsnapt hij => verlies
+        """
+        Beweegt de kat volgens het A*-pad. Als de kat de rand bereikt, ontsnapt hij en verlies je.
+        Als er geen geldig A*-pad is, schakelt hij over naar willekeurige zetten.
+        """
         if (self.cat_pos[0] == 0 or self.cat_pos[0] == self.rows - 1 or
             self.cat_pos[1] == 0 or self.cat_pos[1] == self.cols - 1):
             self.game_over = True
@@ -209,269 +208,158 @@ class Game:
                     heapq.heappush(open_set, (cost + 1 + heuristic((nr, nc)),
                                                cost + 1, (nr, nc), path + [current]))
         return []
+    
+    def get_neighbors(self, pos, grid):
+        """Geeft de aangrenzende lege cellen van pos in het gegeven grid."""
+        row, col = pos
+        directions = DIRECTIONS_EVEN if row % 2 == 0 else DIRECTIONS_ODD
+        neighbors = []
+        for d in directions:
+            nr, nc = row + d[0], col + d[1]
+            if 0 <= nr < self.rows and 0 <= nc < self.cols and grid[nr][nc] == 0:
+                neighbors.append((nr, nc))
+        return neighbors
 
-    # --- Methoden voor RL integratie ---
-    def get_state(self):
-        state = np.zeros((2, self.rows, self.cols), dtype=np.float32)
-        for r in range(self.rows):
-            for c in range(self.cols):
-                if self.grid[r][c] == 1:
-                    state[0, r, c] = 1.0
-        r, c = self.cat_pos
-        state[1, r, c] = 1.0
-        return state
+    def get_reachable_area_count(self, grid, start):
+        """Bereken het aantal cellen dat vanaf start bereikbaar is (via BFS)."""
+        visited = set()
+        queue = [start]
+        visited.add(start)
+        while queue:
+            current = queue.pop(0)
+            for neighbor in self.get_neighbors(current, grid):
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        return len(visited)
 
-    def reset_env(self):
-        self.reset_game()
-        return self.get_state()
-
-    def step(self, action):
-        if self.game_over:
-            return self.get_state(), 0, True, {}
-
-        row, col = action // self.cols, action % self.cols
-        reward = -1  # standaard stapkost
-
-        if (row, col) == self.cat_pos or self.grid[row][col] == 1:
-            reward = -5
+    def ai_place_block(self):
+        """
+        Bepaal voor elke lege cel (die niet de kat bevat) het effect op de route van de kat.
+        Als de kat al omsingeld is (klein bereikbare regio), kies dan de zet die de
+        bereikbare regio zo klein mogelijk maakt (bij voorkeur 1).
+        Anders wordt de zet gekozen die de A*-route verlengt.
+        """
+        # Pas de drempel aan op basis van veldgrootte
+        threshold = max(10, (self.rows * self.cols) // 20)
+        current_area = self.get_reachable_area_count(self.grid, self.cat_pos)
+        if current_area <= threshold:
+            candidates = []
+            for row in range(self.rows):
+                for col in range(self.cols):
+                    if self.grid[row][col] == 0 and (row, col) != self.cat_pos:
+                        self.grid[row][col] = 1
+                        area = self.get_reachable_area_count(self.grid, self.cat_pos)
+                        self.grid[row][col] = 0
+                        candidates.append(((row, col), area))
+                        if area == 1:
+                            print(f"AI chooses immediate winning move at {(row, col)}")
+                            return (row, col)
+            # Sorteer op bereikbare area (kleinste eerst)
+            candidates.sort(key=lambda x: x[1])
+            best_move, best_area = candidates[0]
+            print(f"AI (area eval) chooses move {best_move} with reachable area {best_area}")
+            return best_move
         else:
-            self.grid[row][col] = 1
-            self.first_move = True
+            candidates = []
+            for row in range(self.rows):
+                for col in range(self.cols):
+                    if self.grid[row][col] == 0 and (row, col) != self.cat_pos:
+                        self.grid[row][col] = 1
+                        path = self.a_star(self.cat_pos)
+                        self.grid[row][col] = 0
+                        if not path:
+                            print(f"AI chooses winning move at {(row, col)}")
+                            return (row, col)
+                        candidates.append(((row, col), len(path)))
+            # Sorteer kandidaten op A*-padlengte (langste eerst)
+            candidates.sort(key=lambda x: x[1], reverse=True)
+            best_move, best_path_length = candidates[0]
+            print(f"AI (A* eval) chooses move {best_move} with A*-path length {best_path_length}")
+            return best_move
 
-        if not self.game_over:
-            self.move_cat()
+    def handle_click(self, pos):
+        grid_offset_x, grid_offset_y = self.get_grid_offsets()
+        for row in range(self.rows):
+            for col in range(self.cols):
+                x = grid_offset_x + col * self.hex_size + (row % 2) * (self.hex_size // 2)
+                y = grid_offset_y + row * self.hex_size
+                hex_points = self.hexagon_points(x, y)
+                if pygame.draw.polygon(self.screen, WHITE, hex_points).collidepoint(pos):
+                    if (row, col) != self.cat_pos and self.grid[row][col] == 0:
+                        self.grid[row][col] = 1
+                        self.first_move = True
+                        self.move_cat()
+                    return
 
-        done = self.game_over
-        if done:
-            reward = 10 if self.win else -10
-        next_state = self.get_state()
-        return next_state, reward, done, {}
+    def run(self):
+        clock = pygame.time.Clock()
+        ai_move_timer = 0  # Timer voor AI-zet als AI mode actief is
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                # In human mode reageert het spel op muisklikken
+                elif not self.ai_mode and event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
+                    self.handle_click(event.pos)
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_r:
+                        self.reset_game()
+                    elif event.key == pygame.K_a:
+                        self.ai_mode = not self.ai_mode
+                        print("AI mode turned", "on" if self.ai_mode else "off")
+                        self.reset_game()
+                    elif not self.first_move:
+                        if event.key == pygame.K_1:
+                            self.num_blocks = 10
+                            print("Aantal blokken ingesteld op 10")
+                            self.reset_game()
+                        elif event.key == pygame.K_2:
+                            self.num_blocks = 20
+                            print("Aantal blokken ingesteld op 20")
+                            self.reset_game()
+                        elif event.key == pygame.K_3:
+                            self.num_blocks = 30
+                            print("Aantal blokken ingesteld op 30")
+                            self.reset_game()
+                        elif event.key == pygame.K_4:
+                            self.rows, self.cols = 7, 7
+                            print("Grid size ingesteld op 7x7")
+                            self.reset_game()
+                        elif event.key == pygame.K_5:
+                            self.rows, self.cols = 11, 11
+                            print("Grid size ingesteld op 11x11")
+                            self.reset_game()
+                        elif event.key == pygame.K_6:
+                            self.rows, self.cols = 15, 15
+                            print("Grid size ingesteld op 15x15")
+                            self.reset_game()
+            
+            # In AI mode laat de computer automatisch een zet doen
+            if self.ai_mode and not self.game_over:
+                ai_move_timer += clock.get_time()
+                if ai_move_timer > 1000:  # Elke seconde
+                    move = self.ai_place_block()
+                    if move is not None:
+                        self.grid[move[0]][move[1]] = 1
+                        self.first_move = True
+                        self.move_cat()
+                    ai_move_timer = 0
 
-# --- DQN Agent en ondersteunende klassen ---
-class ReplayBuffer:
-    def __init__(self, capacity):
-        self.buffer = collections.deque(maxlen=capacity)
-    
-    def push(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
-    
-    def sample(self, batch_size):
-        batch = random.sample(self.buffer, batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
-        return (np.array(states),
-                np.array(actions),
-                np.array(rewards, dtype=np.float32),
-                np.array(next_states),
-                np.array(dones, dtype=np.float32))
-    
-    def __len__(self):
-        return len(self.buffer)
-
-class DQN(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, output_size)
-    
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
-
-class DQNAgent:
-    def __init__(self, state_shape, action_size, lr=1e-3, gamma=0.99, device='cpu'):
-        self.device = device
-        self.action_size = action_size
-        self.gamma = gamma
-        self.input_dim = np.prod(state_shape)
-        self.policy_net = DQN(self.input_dim, action_size).to(device)
-        self.target_net = DQN(self.input_dim, action_size).to(device)
-        self.target_net.load_state_dict(self.policy_net.state_dict())
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
-        self.replay_buffer = ReplayBuffer(10000)
-        self.batch_size = 64
-        self.epsilon = 1.0
-        self.epsilon_min = 0.05
-        self.epsilon_decay = 0.995
-        self.update_target_steps = 1000
-        self.steps_done = 0
-
-    def select_action(self, state_flat, valid_actions_mask):
-        self.steps_done += 1
-        if random.random() < self.epsilon:
-            valid_indices = np.where(valid_actions_mask == 1)[0]
-            if len(valid_indices) == 0:
-                return random.randrange(self.action_size)
-            return int(random.choice(valid_indices))
-        else:
-            with torch.no_grad():
-                state_tensor = torch.FloatTensor(state_flat).unsqueeze(0).to(self.device)
-                q_values = self.policy_net(state_tensor).cpu().data.numpy().flatten()
-                q_values[valid_actions_mask == 0] = -float('inf')
-                return int(np.argmax(q_values))
-
-    def optimize(self):
-        if len(self.replay_buffer) < self.batch_size:
-            return None
-        states, actions, rewards, next_states, dones = self.replay_buffer.sample(self.batch_size)
-        states = torch.FloatTensor(states).to(self.device).view(self.batch_size, -1)
-        next_states = torch.FloatTensor(next_states).to(self.device).view(self.batch_size, -1)
-        actions = torch.LongTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
-        
-        q_values = self.policy_net(states)
-        state_action_values = q_values.gather(1, actions.unsqueeze(1)).squeeze(1)
-        next_q_values = self.target_net(next_states).max(1)[0]
-        expected_values = rewards + self.gamma * next_q_values * (1 - dones)
-        
-        loss = nn.MSELoss()(state_action_values, expected_values.detach())
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-        
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-        return loss.item()
-
-def get_valid_actions_mask(state):
-    grid = state[0]
-    cat_channel = state[1]
-    valid_mask = ((grid == 0) & (cat_channel == 0)).astype(np.int32)
-    return valid_mask.flatten()
-
-def train_rl_agent(num_episodes=1000):
-    env = Game()  # Gebruik de Game als omgeving
-    state_shape = (2, env.rows, env.cols)
-    action_size = env.rows * env.cols
-    agent = DQNAgent(state_shape, action_size, device='cpu')
-    total_steps = 0
-
-    for episode in range(num_episodes):
-        state = env.reset_env()
-        done = False
-        episode_reward = 0
-
-        while not done:
-            state_flat = state.flatten()
-            valid_mask = get_valid_actions_mask(state)
-            action = agent.select_action(state_flat, valid_mask)
-            next_state, reward, done, _ = env.step(action)
-            agent.replay_buffer.push(state, action, reward, next_state, done)
-            state = next_state
-            episode_reward += reward
-
-            loss = agent.optimize()  # Trainingsstap
-            total_steps += 1
-            if total_steps % agent.update_target_steps == 0:
-                agent.target_net.load_state_dict(agent.policy_net.state_dict())
-        
-        print(f"Episode {episode} - Reward: {episode_reward} - Epsilon: {agent.epsilon:.3f}")
-    
-    # Sla de getrainde gewichten op
-    torch.save(agent.policy_net.state_dict(), "dqn_weights.pth")
-    print("Training voltooid en gewichten opgeslagen als 'dqn_weights.pth'.")
-
-def play_game_with_ai():
-    """
-    Start een spel waarin de AI (DQN agent) automatisch blokken plaatst.
-    De AI-oplossing start pas wanneer de gebruiker op de A-toets drukt.
-    Andere toetsen (R, 1,2,3,4,5,6) worden gebruikt om instellingen aan te passen en te resetten.
-    """
-    env = Game()
-    state_shape = (2, env.rows, env.cols)
-    action_size = env.rows * env.cols
-    agent = DQNAgent(state_shape, action_size, device='cpu')
-    
-    # Probeer getrainde gewichten te laden, indien beschikbaar
-    if os.path.exists("dqn_weights.pth"):
-        agent.policy_net.load_state_dict(torch.load("dqn_weights.pth", map_location='cpu'))
-        agent.target_net.load_state_dict(agent.policy_net.state_dict())
-        print("Getrainde gewichten geladen.")
-    else:
-        print("Geen getrainde gewichten gevonden. De AI gebruikt random gewichten.")
-    
-    # Voor de demo: standaard epsilon op 0 voor exploitatief gedrag (maar het beleid is alleen zinvol na training)
-    agent.epsilon = 0.0
-
-    state = env.reset_env()
-    clock = pygame.time.Clock()
-    running = True
-    solving_started = False
-
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a:
-                    solving_started = True
-                elif event.key == pygame.K_r:
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_1:
-                    env.num_blocks = 10
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_2:
-                    env.num_blocks = 20
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_3:
-                    env.num_blocks = 30
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_4:
-                    env.rows, env.cols = 7, 7
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_5:
-                    env.rows, env.cols = 11, 11
-                    state = env.reset_env()
-                    solving_started = False
-                elif event.key == pygame.K_6:
-                    env.rows, env.cols = 15, 15
-                    state = env.reset_env()
-                    solving_started = False
-        
-        if solving_started and not env.game_over:
-            state_flat = state.flatten()
-            valid_mask = get_valid_actions_mask(state)
-            action = agent.select_action(state_flat, valid_mask)
-            state, reward, done, _ = env.step(action)
-        
-        env.draw_grid()
-        if not solving_started:
-            font = pygame.font.SysFont(None, 55)
-            message = 'Press A to start solving'
-            text = font.render(message, True, BLACK)
-            env.screen.blit(text, ((WIDTH - text.get_width()) // 2,
-                                   (HEIGHT - text.get_height()) // 2))
-        if env.game_over:
-            font = pygame.font.SysFont(None, 55)
-            if env.win:
-                message = 'AI won! Cat trapped. Press R or change settings.'
-            else:
-                message = 'AI lost! Cat escaped. Press R or change settings.'
-            text = font.render(message, True, BLACK)
-            env.screen.blit(text, ((WIDTH - text.get_width()) // 2,
-                                   (HEIGHT - text.get_height()) // 2))
-        pygame.display.flip()
-        clock.tick(5)
-    pygame.quit()
+            self.draw_grid()
+            if self.game_over:
+                font = pygame.font.SysFont(None, 55)
+                if self.win:
+                    message = 'Je hebt gewonnen! De kat is gevangen. Druk op R om te resetten'
+                else:
+                    message = 'Je hebt verloren! De kat is ontsnapt. Druk op R om te resetten'
+                text = font.render(message, True, BLACK)
+                self.screen.blit(text, ((WIDTH - text.get_width()) // 2,
+                                         (HEIGHT - text.get_height()) // 2))
+            pygame.display.flip()
+            clock.tick(30)
+        pygame.quit()
 
 if __name__ == "__main__":
-    # Gebruik command-line argumenten:
-    # "rl" => Training modus (zonder pygame display)
-    # "ai" => AI play mode (met pygame display en toetsenbordinput)
-    if len(sys.argv) > 1:
-        mode = sys.argv[1]
-        if mode == "rl":
-            train_rl_agent(num_episodes=10000)  # Pas het aantal episodes aan naar wens
-        elif mode == "ai":
-            play_game_with_ai()
-        else:
-            print("Onbekend argument. Gebruik 'rl' voor training of 'ai' voor AI play mode.")
-    else:
-        play_game_with_ai()
+    # Start het spel met AI-block placement door ai_mode=True te zetten.
+    Game(ai_mode=True).run()
