@@ -338,7 +338,7 @@ class Game:
             # In AI mode laat de computer automatisch een zet doen
             if self.ai_mode and not self.game_over:
                 ai_move_timer += clock.get_time()
-                if ai_move_timer > 1000:  # Elke seconde
+                if ai_move_timer > 500:  # Elke seconde
                     move = self.ai_place_block()
                     if move is not None:
                         self.grid[move[0]][move[1]] = 1
@@ -362,4 +362,4 @@ class Game:
 
 if __name__ == "__main__":
     # Start het spel met AI-block placement door ai_mode=True te zetten.
-    Game(ai_mode=True).run()
+    Game(ai_mode=False).run()
