@@ -49,14 +49,19 @@ class Game:
         self.depth_limit = 3  # Standaard diepte voor de minimax-tree
         self.running = True
         self.ai_mode = ai_mode
-        self.reset_game()
         
         # Variabelen voor AI-thread en voortgang
         self.ai_thread = None
         self.ai_best_move = None
         self.ai_progress_count = 0
+        self.cancel_ai = False  # Vlag om lopende AI-berekening te annuleren
+        
+        self.reset_game()
 
     def reset_game(self):
+        # Annuleer eventuele lopende AI-berekening
+        self.stop_ai()
+
         # Update de hex_size op basis van de huidige gridgrootte
         self.hex_size = self.game_area_width // (self.cols + 1)
         scale = int(self.hex_size * 0.66)
@@ -71,13 +76,24 @@ class Game:
         self.first_move = False    # Geeft aan of er al een zet is gedaan
         self.win = None            # True als gewonnen, False als verloren
         self.init_blocks()
-        # Reset AI-variabelen
+        
+        # Reset AI-gerelateerde variabelen
         self.ai_thread = None
         self.ai_best_move = None
         self.ai_progress_count = 0
+        self.cancel_ai = False
+        
         # Voor flash-effecten tijdens AI-zoektocht: set van (row, col)
         self.flash_moves = set()
         self.flash_lock = threading.Lock()
+
+    def stop_ai(self):
+        """Zet de cancel_vlag zodat de AI-thread netjes stopt en wacht even tot de thread klaar is."""
+        self.cancel_ai = True
+        if self.ai_thread is not None and self.ai_thread.is_alive():
+            self.ai_thread.join(timeout=0.1)
+        self.ai_thread = None
+        self.cancel_ai = False
 
     def init_blocks(self):
         # Plaats het vooraf ingestelde aantal blokken willekeurig (initieel grijs, dus waarde 1)
@@ -247,11 +263,13 @@ class Game:
                                                cost + 1, (nr, nc), path + [current]))
         return []
     
-    # --- Minimax met progress indicator en flash-effect voor kandidaatzetten ---
+    # --- Minimax met progress indicator, flash-effect en cancel-check ---
     def minimax_ai_place_block(self, depth_limit=3):
         """
         Berekent de beste zet voor de AI met behulp van minimax (met alfa-beta-snoeien).
-        Er wordt een voortgangscounter bijgehouden en per kandidaat zet wordt deze kort in rood getoond.
+        Er wordt een voortgangscounter bijgehouden en per kandidaat zet blijft deze rood gemarkeerd
+        tot de evaluatie voor die kandidaat is afgerond.
+        Als self.cancel_ai True is, wordt de berekening afgebroken.
         """
         progress = {"nodes": 0}  # Voor voortgang
 
@@ -265,6 +283,8 @@ class Game:
             queue.append((cat_pos, 0))
             visited.add(cat_pos)
             while queue:
+                if self.cancel_ai:
+                    return math.inf
                 pos, dist = queue.popleft()
                 if on_border(pos):
                     return dist
@@ -293,6 +313,8 @@ class Game:
             queue = deque([pos])
             visited.add(pos)
             while queue:
+                if self.cancel_ai:
+                    return visited
                 current = queue.popleft()
                 r, c = current
                 directions = DIRECTIONS_EVEN if r % 2 == 0 else DIRECTIONS_ODD
@@ -306,6 +328,8 @@ class Game:
 
         def evaluate_state(grid, cat_pos):
             progress["nodes"] += 1  # update progress
+            if self.cancel_ai:
+                return 0
             if on_border(cat_pos):
                 return -1000
             if not get_valid_moves_static(grid, cat_pos):
@@ -320,6 +344,8 @@ class Game:
 
         def minimax(grid, cat_pos, depth, is_ai, alpha, beta):
             progress["nodes"] += 1  # update progress
+            if self.cancel_ai:
+                return 0
             if depth == 0:
                 return evaluate_state(grid, cat_pos)
             if on_border(cat_pos):
@@ -344,6 +370,8 @@ class Game:
                             if grid[r][c] == 0 and (r, c) != cat_pos:
                                 candidate_moves.append((r, c))
                 for move in candidate_moves:
+                    if self.cancel_ai:
+                        return 0
                     r, c = move
                     grid[r][c] = 1  # simuleer zet
                     score = minimax(grid, cat_pos, depth - 1, False, alpha, beta)
@@ -359,6 +387,8 @@ class Game:
                 if not moves:
                     return 1000
                 for move in moves:
+                    if self.cancel_ai:
+                        return 0
                     score = minimax(grid, move, depth - 1, True, alpha, beta)
                     value = min(value, score)
                     beta = min(beta, value)
@@ -382,16 +412,18 @@ class Game:
                         candidate_moves.append((r, c))
 
         for move in candidate_moves:
-            # Flash de kandidaat zet rood in de UI
+            if self.cancel_ai:
+                return None
+            # Markeer de kandidaat cel rood en laat deze rood blijven tijdens de evaluatie
             with self.flash_lock:
                 self.flash_moves.add(move)
-            time.sleep(0.05)  # Flashduur
-            with self.flash_lock:
-                self.flash_moves.discard(move)
             r, c = move
             self.grid[r][c] = 1  # simuleer zet (tijdelijk)
             value = minimax(self.grid, self.cat_pos, depth_limit - 1, False, -math.inf, math.inf)
             self.grid[r][c] = 0  # herstel
+            # Verwijder de flash na de evaluatie van deze kandidaat
+            with self.flash_lock:
+                self.flash_moves.discard(move)
             if value > best_value:
                 best_value = value
                 best_move = move
@@ -432,6 +464,7 @@ class Game:
                 elif not self.ai_mode and event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                     self.handle_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
+                    # Bij elke wijziging zorgen we dat de AI wordt geannuleerd
                     if event.key == pygame.K_r:
                         self.reset_game()
                     elif event.key == pygame.K_a:
@@ -441,9 +474,11 @@ class Game:
                     elif event.key == pygame.K_7:
                         self.depth_limit = max(1, self.depth_limit - 1)
                         print("Minimax diepte verlaagd naar", self.depth_limit)
+                        self.reset_game()
                     elif event.key == pygame.K_8:
                         self.depth_limit += 1
                         print("Minimax diepte verhoogd naar", self.depth_limit)
+                        self.reset_game()
                     elif not self.first_move:
                         if event.key == pygame.K_1:
                             self.num_blocks = 10
