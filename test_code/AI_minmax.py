@@ -264,7 +264,7 @@ class Game:
         return []
     
     # --- Minimax met progress indicator, flash-effect en cancel-check ---
-    def minimax_ai_place_block(self, depth_limit=3):
+    def minimax_ai_place_block(self, depth_limit=4):
         """
         Berekent de beste zet voor de AI met behulp van minimax (met alfa-beta-snoeien).
         Er wordt een voortgangscounter bijgehouden en per kandidaat zet blijft deze rood gemarkeerd
@@ -537,4 +537,4 @@ class Game:
 
 if __name__ == "__main__":
     # Start het spel met AI-block placement in minimax modus
-    Game(ai_mode=True).run()
+    Game(ai_mode=False).run()
