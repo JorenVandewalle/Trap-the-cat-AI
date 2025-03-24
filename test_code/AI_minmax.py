@@ -25,6 +25,8 @@ class Game:
         # Standaard gridgrootte (kan aangepast worden met toetsen 4,5,6)
         self.rows = 11
         self.cols = 11
+
+        self.depth_limit = 3 
         
         # Bereken de hexagonale celgrootte op basis van de beschikbare breedte
         self.hex_size = self.game_area_width // (self.cols + 1)
@@ -104,7 +106,8 @@ class Game:
             f"Blokken: {self.num_blocks}",
             f"Grid: {self.rows}x{self.cols}",
             "",
-            f"AI Mode: {'Aan' if self.ai_mode else 'Uit'}"
+            f"AI Mode: {'Aan' if self.ai_mode else 'Uit'}",
+            f"MinMax depth tree:  {self.depth_limit}"
         ]
         x = 10
         y = 10
@@ -346,7 +349,6 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                # In human mode reageert het spel op muisklikken
                 elif not self.ai_mode and event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                     self.handle_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
@@ -356,6 +358,14 @@ class Game:
                         self.ai_mode = not self.ai_mode
                         print("AI mode turned", "on" if self.ai_mode else "off")
                         self.reset_game()
+                    # Voorbeeld: Pas de minimax-diepte aan met toetsen 7 en 8
+                    elif event.key == pygame.K_7:
+                        self.depth_limit = max(1, self.depth_limit - 1)
+                        print("Minimax diepte verlaagd naar", self.depth_limit)
+                    elif event.key == pygame.K_8:
+                        self.depth_limit += 1
+                        print("Minimax diepte verhoogd naar", self.depth_limit)
+                    # bestaande instellingen voor blokken en gridgrootte
                     elif not self.first_move:
                         if event.key == pygame.K_1:
                             self.num_blocks = 10
@@ -381,12 +391,12 @@ class Game:
                             self.rows, self.cols = 15, 15
                             print("Grid size ingesteld op 15x15")
                             self.reset_game()
-            
-            # In AI mode laat de computer automatisch een zet doen
+
             if self.ai_mode and not self.game_over:
                 ai_move_timer += clock.get_time()
                 if ai_move_timer > 500:  # Elke 0.5 seconde
-                    move = self.minimax_ai_place_block(depth_limit=3)
+                    # Gebruik nu de variabele self.depth_limit
+                    move = self.minimax_ai_place_block(depth_limit=self.depth_limit)
                     if move is not None:
                         self.grid[move[0]][move[1]] = 1
                         self.first_move = True
