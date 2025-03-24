@@ -2,10 +2,17 @@ import pygame
 import random
 import heapq
 import math
+import threading
+import time
+from collections import deque
 
 # Constants voor het venster en kleuren
 WIDTH, HEIGHT = 1200, 1000
-WHITE, BLACK, GRAY, BLUE = (255, 255, 255), (0, 0, 0), (200, 200, 200), (50, 50, 255)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GRAY  = (200, 200, 200)
+BLUE  = (50, 50, 255)
+RED   = (255, 0, 0)
 
 # Richtingen voor hexagonale beweging (afhankelijk van even/oneven rijen)
 DIRECTIONS_EVEN = [(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)]
@@ -25,8 +32,6 @@ class Game:
         # Standaard gridgrootte (kan aangepast worden met toetsen 4,5,6)
         self.rows = 11
         self.cols = 11
-
-        self.depth_limit = 3 
         
         # Bereken de hexagonale celgrootte op basis van de beschikbare breedte
         self.hex_size = self.game_area_width // (self.cols + 1)
@@ -41,9 +46,15 @@ class Game:
         self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
         
         self.num_blocks = 10  # Standaard aantal blokken
+        self.depth_limit = 3  # Standaard diepte voor de minimax-tree
         self.running = True
         self.ai_mode = ai_mode
         self.reset_game()
+        
+        # Variabelen voor AI-thread en voortgang
+        self.ai_thread = None
+        self.ai_best_move = None
+        self.ai_progress_count = 0
 
     def reset_game(self):
         # Update de hex_size op basis van de huidige gridgrootte
@@ -51,6 +62,8 @@ class Game:
         scale = int(self.hex_size * 0.66)
         self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
         
+        # Gridwaarden:
+        # 0 = leeg, 1 = initieel geblokkeerd (grijs), 2 = door minimax gebruikte zet (blauw)
         self.grid = [[0 for _ in range(self.cols)] for _ in range(self.rows)]
         self.cat_pos = (self.rows // 2, self.cols // 2)
         self.game_over = False
@@ -58,9 +71,16 @@ class Game:
         self.first_move = False    # Geeft aan of er al een zet is gedaan
         self.win = None            # True als gewonnen, False als verloren
         self.init_blocks()
+        # Reset AI-variabelen
+        self.ai_thread = None
+        self.ai_best_move = None
+        self.ai_progress_count = 0
+        # Voor flash-effecten tijdens AI-zoektocht: set van (row, col)
+        self.flash_moves = set()
+        self.flash_lock = threading.Lock()
 
     def init_blocks(self):
-        # Plaats het vooraf ingestelde aantal blokken willekeurig
+        # Plaats het vooraf ingestelde aantal blokken willekeurig (initieel grijs, dus waarde 1)
         for _ in range(self.num_blocks):
             while True:
                 row = random.randint(0, self.rows - 1)
@@ -99,15 +119,17 @@ class Game:
             "1: 10 blokken, 2: 20 blokken, 3: 30 blokken",
             "4: grid 7x7, 5: grid 11x11, 6: grid 15x15",
             "A: toggle AI mode",
+            "7/8: pas minimax diepte aan",
             "",
             "Goal:",
             "Trap de Kat!",
             "",
             f"Blokken: {self.num_blocks}",
             f"Grid: {self.rows}x{self.cols}",
+            f"Minimax diepte: {self.depth_limit}",
             "",
             f"AI Mode: {'Aan' if self.ai_mode else 'Uit'}",
-            f"MinMax depth tree:  {self.depth_limit}"
+            f"AI Progress: {self.ai_progress_count} knopen"
         ]
         x = 10
         y = 10
@@ -126,7 +148,19 @@ class Game:
             for col in range(self.cols):
                 x = grid_offset_x + col * self.hex_size + (row % 2) * (self.hex_size // 2)
                 y = grid_offset_y + row * self.hex_size
-                color = GRAY if self.grid[row][col] == 1 else WHITE
+                # Kies kleur: 
+                # 1 = initieel geblokkeerd (grijs)
+                # 2 = door minimax gebruikte zet (blauw)
+                # Als de cel tijdelijk in flash_moves zit, teken hem rood
+                with self.flash_lock:
+                    if (row, col) in self.flash_moves:
+                        color = RED
+                    elif self.grid[row][col] == 1:
+                        color = GRAY
+                    elif self.grid[row][col] == 2:
+                        color = BLUE
+                    else:
+                        color = WHITE
                 pygame.draw.polygon(self.screen, color, self.hexagon_points(x, y))
                 pygame.draw.polygon(self.screen, BLACK, self.hexagon_points(x, y), 1)
         
@@ -213,21 +247,19 @@ class Game:
                                                cost + 1, (nr, nc), path + [current]))
         return []
     
-    # --- Minimax implementatie ---
+    # --- Minimax met progress indicator en flash-effect voor kandidaatzetten ---
     def minimax_ai_place_block(self, depth_limit=3):
         """
-        Berekent de beste zet voor de AI met behulp van een minimax-algoritme (met alfa-beta-snoeien).
-        Hier is de AI de maximizer (probeert de kat zo moeilijk mogelijk te maken) en de kat de minimizer.
-        Het evaluatiegetal is gebaseerd op de lengte van het kortste pad van de kat naar de rand.
-        Een langere weg is beter voor de AI, terwijl het bereiken van de rand of een korte weg slecht is.
+        Berekent de beste zet voor de AI met behulp van minimax (met alfa-beta-snoeien).
+        Er wordt een voortgangscounter bijgehouden en per kandidaat zet wordt deze kort in rood getoond.
         """
+        progress = {"nodes": 0}  # Voor voortgang
+
         def on_border(pos):
             r, c = pos
             return r == 0 or r == self.rows - 1 or c == 0 or c == self.cols - 1
 
         def shortest_path_length(grid, cat_pos):
-            # Eenvoudige BFS om de kortste afstand van cat_pos naar een randcel te vinden.
-            from collections import deque
             queue = deque()
             visited = set()
             queue.append((cat_pos, 0))
@@ -246,19 +278,6 @@ class Game:
                         queue.append((new_pos, dist + 1))
             return math.inf
 
-        def evaluate_state(grid, cat_pos):
-            # Als de kat al op de rand staat, is dat verlies: lage score.
-            if on_border(cat_pos):
-                return -1000
-            # Als de kat geen geldige zetten meer heeft, is dat een winst: hoge score.
-            if not get_valid_moves_static(grid, cat_pos):
-                return 1000
-            dist = shortest_path_length(grid, cat_pos)
-            # Als er geen pad is (kat is ingesloten) beschouwen we dit als een zeer hoge score.
-            if dist == math.inf:
-                return 1000
-            return dist
-
         def get_valid_moves_static(grid, pos):
             r, c = pos
             moves = []
@@ -269,45 +288,79 @@ class Game:
                     moves.append((nr, nc))
             return moves
 
-        def minimax(grid, cat_pos, depth, is_ai, alpha, beta):
-            # Terminal of diepte-limit
-            if depth == 0:
-                return evaluate_state(grid, cat_pos)
-            # Als de kat is ontsnapt
+        def get_reachable_cells_static(grid, pos):
+            visited = set()
+            queue = deque([pos])
+            visited.add(pos)
+            while queue:
+                current = queue.popleft()
+                r, c = current
+                directions = DIRECTIONS_EVEN if r % 2 == 0 else DIRECTIONS_ODD
+                for d in directions:
+                    nr, nc = r + d[0], c + d[1]
+                    new_pos = (nr, nc)
+                    if 0 <= nr < self.rows and 0 <= nc < self.cols and grid[nr][nc] == 0 and new_pos not in visited:
+                        visited.add(new_pos)
+                        queue.append(new_pos)
+            return visited
+
+        def evaluate_state(grid, cat_pos):
+            progress["nodes"] += 1  # update progress
             if on_border(cat_pos):
                 return -1000
-            # Als de kat vast zit
+            if not get_valid_moves_static(grid, cat_pos):
+                return 1000
+            reachable = len(get_reachable_cells_static(grid, cat_pos))
+            if reachable == 1:
+                return 1000
+            dist = shortest_path_length(grid, cat_pos)
+            if dist == math.inf:
+                return 1000
+            return dist
+
+        def minimax(grid, cat_pos, depth, is_ai, alpha, beta):
+            progress["nodes"] += 1  # update progress
+            if depth == 0:
+                return evaluate_state(grid, cat_pos)
+            if on_border(cat_pos):
+                return -1000
             if not get_valid_moves_static(grid, cat_pos):
                 return 1000
 
+            current_reachable = get_reachable_cells_static(grid, cat_pos)
+            restrict_moves = len(current_reachable) <= 10
+
             if is_ai:
                 value = -math.inf
-                # Overweeg alle mogelijke zetten: alle lege cellen (niet de kat)
-                for r in range(self.rows):
-                    for c in range(self.cols):
-                        if grid[r][c] == 0 and (r, c) != cat_pos:
-                            grid[r][c] = 1  # simuleer zet
-                            score = minimax(grid, cat_pos, depth - 1, False, alpha, beta)
-                            grid[r][c] = 0  # herstel
-                            if score > value:
-                                value = score
-                            alpha = max(alpha, value)
-                            if beta <= alpha:
-                                break
+                candidate_moves = []
+                if restrict_moves:
+                    for pos in current_reachable:
+                        r, c = pos
+                        if grid[r][c] == 0 and pos != cat_pos:
+                            candidate_moves.append(pos)
+                else:
+                    for r in range(self.rows):
+                        for c in range(self.cols):
+                            if grid[r][c] == 0 and (r, c) != cat_pos:
+                                candidate_moves.append((r, c))
+                for move in candidate_moves:
+                    r, c = move
+                    grid[r][c] = 1  # simuleer zet
+                    score = minimax(grid, cat_pos, depth - 1, False, alpha, beta)
+                    grid[r][c] = 0  # herstel
+                    value = max(value, score)
+                    alpha = max(alpha, value)
                     if beta <= alpha:
                         break
                 return value
             else:
-                # Kat's beurt: beschouw alle geldige zetten
                 value = math.inf
                 moves = get_valid_moves_static(grid, cat_pos)
                 if not moves:
                     return 1000
                 for move in moves:
-                    new_cat = move
-                    score = minimax(grid, new_cat, depth - 1, True, alpha, beta)
-                    if score < value:
-                        value = score
+                    score = minimax(grid, move, depth - 1, True, alpha, beta)
+                    value = min(value, score)
                     beta = min(beta, value)
                     if beta <= alpha:
                         break
@@ -315,16 +368,35 @@ class Game:
 
         best_move = None
         best_value = -math.inf
-        # We evalueren alle mogelijke zetten van de AI (lege cellen, niet op de kat)
-        for r in range(self.rows):
-            for c in range(self.cols):
-                if self.grid[r][c] == 0 and (r, c) != self.cat_pos:
-                    self.grid[r][c] = 1
-                    value = minimax(self.grid, self.cat_pos, depth_limit - 1, False, -math.inf, math.inf)
-                    self.grid[r][c] = 0
-                    if value > best_value:
-                        best_value = value
-                        best_move = (r, c)
+        candidate_moves = []
+        current_reachable = get_reachable_cells_static(self.grid, self.cat_pos)
+        if len(current_reachable) <= 10:
+            for pos in current_reachable:
+                r, c = pos
+                if self.grid[r][c] == 0 and pos != self.cat_pos:
+                    candidate_moves.append(pos)
+        else:
+            for r in range(self.rows):
+                for c in range(self.cols):
+                    if self.grid[r][c] == 0 and (r, c) != self.cat_pos:
+                        candidate_moves.append((r, c))
+
+        for move in candidate_moves:
+            # Flash de kandidaat zet rood in de UI
+            with self.flash_lock:
+                self.flash_moves.add(move)
+            time.sleep(0.05)  # Flashduur
+            with self.flash_lock:
+                self.flash_moves.discard(move)
+            r, c = move
+            self.grid[r][c] = 1  # simuleer zet (tijdelijk)
+            value = minimax(self.grid, self.cat_pos, depth_limit - 1, False, -math.inf, math.inf)
+            self.grid[r][c] = 0  # herstel
+            if value > best_value:
+                best_value = value
+                best_move = move
+
+        self.ai_progress_count = progress["nodes"]
         print(f"Minimax AI kiest zet {best_move} met evaluatie {best_value}")
         return best_move
 
@@ -336,15 +408,23 @@ class Game:
                 y = grid_offset_y + row * self.hex_size
                 hex_points = self.hexagon_points(x, y)
                 if pygame.draw.polygon(self.screen, WHITE, hex_points).collidepoint(pos):
+                    # Alleen klikken als het vakje leeg is (waarde 0) en niet de kat
                     if (row, col) != self.cat_pos and self.grid[row][col] == 0:
                         self.grid[row][col] = 1
                         self.first_move = True
                         self.move_cat()
                     return
 
+    def start_ai_thread(self):
+        # Start een nieuwe thread voor de AI-berekening
+        def compute_move():
+            move = self.minimax_ai_place_block(depth_limit=self.depth_limit)
+            self.ai_best_move = move
+        self.ai_thread = threading.Thread(target=compute_move)
+        self.ai_thread.start()
+
     def run(self):
         clock = pygame.time.Clock()
-        ai_move_timer = 0  # Timer voor AI-zet als AI mode actief is
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -358,14 +438,12 @@ class Game:
                         self.ai_mode = not self.ai_mode
                         print("AI mode turned", "on" if self.ai_mode else "off")
                         self.reset_game()
-                    # Voorbeeld: Pas de minimax-diepte aan met toetsen 7 en 8
                     elif event.key == pygame.K_7:
                         self.depth_limit = max(1, self.depth_limit - 1)
                         print("Minimax diepte verlaagd naar", self.depth_limit)
                     elif event.key == pygame.K_8:
                         self.depth_limit += 1
                         print("Minimax diepte verhoogd naar", self.depth_limit)
-                    # bestaande instellingen voor blokken en gridgrootte
                     elif not self.first_move:
                         if event.key == pygame.K_1:
                             self.num_blocks = 10
@@ -391,17 +469,22 @@ class Game:
                             self.rows, self.cols = 15, 15
                             print("Grid size ingesteld op 15x15")
                             self.reset_game()
-
+            
+            # In AI mode starten we periodiek een thread indien nodig
             if self.ai_mode and not self.game_over:
-                ai_move_timer += clock.get_time()
-                if ai_move_timer > 500:  # Elke 0.5 seconde
-                    # Gebruik nu de variabele self.depth_limit
-                    move = self.minimax_ai_place_block(depth_limit=self.depth_limit)
-                    if move is not None:
-                        self.grid[move[0]][move[1]] = 1
-                        self.first_move = True
-                        self.move_cat()
-                    ai_move_timer = 0
+                if self.ai_thread is None or not self.ai_thread.is_alive():
+                    if self.ai_best_move is not None:
+                        # Als de thread klaar is, pas de zet toe en markeer de zet als blauw (waarde 2)
+                        move = self.ai_best_move
+                        if move is not None:
+                            r, c = move
+                            self.grid[r][c] = 2  # markeer zet als door AI gebruikt (blauw)
+                            self.first_move = True
+                            self.move_cat()
+                        self.ai_best_move = None
+                    else:
+                        # Start een nieuwe AI-thread als er geen actief is
+                        self.start_ai_thread()
 
             self.draw_grid()
             if self.game_over:
@@ -418,5 +501,5 @@ class Game:
         pygame.quit()
 
 if __name__ == "__main__":
-    # Start het spel met AI-block placement door ai_mode=True te zetten.
+    # Start het spel met AI-block placement in minimax modus
     Game(ai_mode=True).run()
