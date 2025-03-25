@@ -26,26 +26,39 @@ Dit project gaat voor het toepassen van Artificial Intelligence en Machine Learn
 
 ## Doelstellingen
 
-Het ontwikkelen van een prototype dat gebruikmaakt van AI en Machine Learning om de kat te vangen.
+### Hoofddoelen
+
+- **Game**
+  Er moet een user friendly game gemaakt worden die makkelijk verstaanbaar is en er goed uitziet.
+- **Algoritme kat**
+  Voor het spel moet een Algoritme toegevoegd worden voor de kat, deze moet de snelste route naar het ontsnappen vinden.
+- **Vangen kat (ML)**
+  Door middel van Machine Learning moet een AI de kat kunnen vangen, dit kan bijvoorbeeld door Reinforced Learning hierbij zal de AI zich verbeteren door middel van straffen en rewards.
+
+### Subdoelen
+
+- **Uitbreidbaar speelveld**
+  Het spel moet makkelijk uitbreidbaar zij, zoals de grote van het speelveld of het aantal vooraf geblokkeerde vakken.
+- **Visuele weergave**
+  Dit sluit aan op het user friendly maken van het spel, het visueel maken van het spel zal alles duidelijk maken.
 
 ---
 
 ## Probleemstelling **200 woorden**
 
+- **Moeten we zelf nog het spel programmeren of kunnen we ergens het spel downloaden?**
+  Is er online bijvoorbeeld een .exe file waardoor we deze gewoon kunnen gebruiken en een AI kunnen implementeren. Of moeten we deze zelf nog maken. We hebben gekozen om het zelf nog te maken, hierdoor kunnen we alles zelf bepalen en kunnen we sneller aan een AI beginnen.
+- **Maken we een Machine Learning AI voor de kat of om de kat te vangen?**
+  Willen we een Machine Learning model voor de kat zodat de user tegen een AI kan spelen. Of willen we dat een AI de kat probeert te vangen. Het meest logische is zeker dat er een AI de kat probeert te vangen wat wij ook direct voor gingen.
 - **Hoe gaan we Machine Learning implementeren in Trap the cat?**
-    Onze eerste vraag was hoe we AI Machine Learning kunnen implementeren in het spel. We dachten eerst aan (RL) Reinforced Learning. Hierbij door straffen en beloningen kan de AI zichzelf bijleren. 
-
+  Hoe we AI Machine Learning kunnen implementeren in het spel. We dachten eerst aan (RL) Reinforced Learning. Hierbij door straffen en beloningen kan de AI zichzelf bijleren.
 
 ---
 
 ## Analyse
 - Beschrijf de stappen die jullie in de analyse van de probleemstelling hebben doorlopen in minimaal **500 woorden**.
-- **Vergelijkbare projecten:**  
-  *Noem hier relevante voorbeelden.*
 - **AI Algoritmen / Structuren:**  
   - Welke AI algoritmen en/of structuren zijn gekozen en waarom?
-- **Relevante tools:**  
-  - Geef een overzicht van de tools die in het project worden ingezet.
 - **Software:**  
   - Welke software (OS, libraries, etc.) is nodig?
 

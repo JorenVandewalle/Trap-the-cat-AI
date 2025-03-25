@@ -7,7 +7,7 @@ import time
 from collections import deque
 
 # Constants voor het venster en kleuren
-WIDTH, HEIGHT = 1200, 1000
+WIDTH, HEIGHT = 1200, 800   # Window dimensions
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY  = (200, 200, 200)
@@ -33,8 +33,8 @@ class Game:
         self.rows = 11
         self.cols = 11
         
-        # Bereken de hexagonale celgrootte op basis van de beschikbare breedte
-        self.hex_size = self.game_area_width // (self.cols + 1)
+        # Calculate hex_size based on both width and height available.
+        self.hex_size = self.calculate_hex_size()
         
         # Laad de kattenafbeelding en schaal deze naar 66% van de hex celgrootte
         try:
@@ -58,12 +58,21 @@ class Game:
         
         self.reset_game()
 
+    def calculate_hex_size(self):
+        # Calculate size based on available width (for horizontal fitting)
+        size_width = self.game_area_width // (self.cols + 1)
+        # Calculate size based on available height (for vertical fitting)
+        # We leave some padding at the top and bottom (say 20 pixels each)
+        available_height = HEIGHT - 40
+        size_height = available_height // self.rows
+        return min(size_width, size_height)
+
     def reset_game(self):
         # Annuleer eventuele lopende AI-berekening
         self.stop_ai()
 
-        # Update de hex_size op basis van de huidige gridgrootte
-        self.hex_size = self.game_area_width // (self.cols + 1)
+        # Update the hex_size based on the current grid size and screen dimensions
+        self.hex_size = self.calculate_hex_size()
         scale = int(self.hex_size * 0.66)
         self.cat_image = pygame.transform.scale(self.cat_image, (scale, scale))
         
@@ -109,6 +118,7 @@ class Game:
         """
         Berekent de offsets zodat het grid gecentreerd staat binnen het game-gebied (rechts van de zijbalk).
         """
+        # Draw width: account for staggered columns, so add half a hex_size.
         grid_draw_width = self.cols * self.hex_size + self.hex_size // 2
         grid_draw_height = self.rows * self.hex_size
         grid_offset_x = self.left_sidebar_width + (self.game_area_width - grid_draw_width) // 2
