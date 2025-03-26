@@ -77,18 +77,58 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 
 ## Resultaat ** 500 woorden **
 
-- **Overzicht:**  
-  - Maak eerst een overzicht van alle onderdelen en geef een algemene beschrijving.
-- **Uitwerking:**  
-  - Werk elk onderdeel afzonderlijk uit.
-  - Gebruik figuren, schema’s en diagrammen om de tekst te verduidelijken.
+### Overzicht
+
+In ons project hebben we een spel gemaakt waarin de speler de kat kan proberen vangen door op een slimme manier de blokken te plaatsen. Er is een gebruiksvriendelijke interface, waarbij de instellingen zoals het bord size eenvoudig aanpasbaar is. De bedoeling was om door het gebruik van een techniek in machine learning een AI te maken die de kat kan vangen. Dit is ons niet gelukt en daarom hebben we uiteindelijk overgeschakeld naar het minmax algoritme. Deze zal door evaluatiefuncties en zoekdieptelimieten uitzoeken wat de beste zet is om de kat te vangen. 
+
+### MinMax algoritme
+
+
+
+### Visualisatie
+
+Voor de visualisatie gebruiken wij pygame. Er zijn 2 delen, links heb je de settings en wat info en recht heb je het spelbord. Het spelbord is gemaakt uit hexagonale cellen. Deze worden dynamisch getekend met verschillende kleuren afhankelijk van de status.
+
+- **Witte cellen:**
+Vrije blokken.
+- **Grijze cellen:**
+Randomize pre placed blokken, of blokken die de user heeft geplaatst.
+- **Blauwe cellen:**
+Blokken geplaats door de AI.
+- **Flikerende rode cellen:**
+Is tijdelijk tijdens de evaluatie door het algoritme.
+
+De kat wordt afgebeeld als een afbeelding van een kat, als deze foto niet gevonden wordt dan komt er een blauwe cirkel. De layout zorgt ervoor dat het spelbord altijd gecentreerd staat ook bij het aanpassen van de grote. De visuele effecten geven ook de werking van het minmax algoritme, hierdoor zie je waar het algoritme mee bezig is.
+
+![Startscree](./images/startscreen.png)
+![AI_Calculating](./images/AI_bezig.png)
+![Trapped_cat](./images/trapped_AI.png)
+
+### Code
+
+#### Libraries
+
+- **pygame:**
+  Wordt gebruikt voor de grafische interface.
+- **random:**
+  Zorgt voor willekeurige getallen, gebruiken we voor random pre placed blokken te plaatsen.
+- **heapq:**
+  Wordt gebruikt bij het A* algoritme, vindt efficiënt de knoop met de laagste kosten.
+- **math:**
+  Geeft toegang tot wiskundige functies die gebruikt worden in het algoritme.
+- **threading:**
+  Gaat ervoor zorgen dat de game niet vastloopt terwijl er berekeningen gebeuren, deze berekeningen gebeuren op de achtergrond.
+- **time:**
+  Wordt momenteel niet gebruik, maar zorgt voor bijvoorbeeld een timer in het spel.
+- **collections.deque:**
+  Het uitvoeren van queue operaties.
 
 ---
 
 ## Uitbreiding
 
 - **Sterker AI:**
-  Natuurlijk de eerste uibreiding die hierbij zou komen is een sterkere AI of een AI met machine learning.
+  Natuurlijk de eerste uitbreiding die hierbij zou komen is een sterkere AI of een AI met machine learning.
 - **.exe file:**
   Daarna is een .exe file ook een goede uitbreiding moest er een Machine Learning AI zijn. Dit maakt het voor de user gemakkelijk en iedereen kan dit gebruiken.
 
