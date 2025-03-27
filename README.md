@@ -71,9 +71,11 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 
 ### 2. MinMax algoritme
 
-  Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme.
+  Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme. 
+  
+  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoythme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken. 
 
----
+
 
 ## Resultaat ** 500 woorden **
 
