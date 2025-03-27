@@ -61,7 +61,7 @@ Dit project gaat voor het toepassen van Artificial Intelligence en Machine Learn
 
 ### 1. Reinforced learning
 
-Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de kat probeert te vangen. Hiervoor dachten we eerst aan de techniek Reinforced Learning. Hier hebben we een RL agent gebruikt. Het is een Deep Q netwerk (DQN) dit leert welke cel hij moet blokkeren zodat het de beste kans geeft om de kat te vangen.
+Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de kat probeert te vangen. Hiervoor dachten we eerst aan de techniek Reinforced Learning. Hier hebben we een RL agent gebruikt. Het is een Deep Q netwerk (DQN) dit leert welke cel hij moet blokkeren zodat het de beste kans geeft om de kat te vangen. Maar tijdens het trainen (zelfs met 20000 episodes) had de AI buiten de eerste 100 steeds dezelfde rewards en epsilon. Gewichten werden opgeslagen en verder gebruikt. Uiteindelijk bij het gebruiken van de AI in het spel, leek het of hij enkel random moves deed.
 
 - **DQN agent:**
   Dit is een agent die door het gebruik van een neuraal netwerk Q waarden gaat voorspellen voor alle mogelijke zetten. Er worden dan gewichten opgeslagen op die door de training worden aangepast, dit omdat de agent dan leert om de beste mogelijke acties te kiezen. Deze gewichten zijn eigenlijk de opgedane kennis van de AI.
@@ -71,9 +71,8 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 
 ### 2. MinMax algoritme
 
-  Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme. 
-  
-  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoythme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken. 
+  Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme.
+  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoritme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken. 
 
 
 
@@ -81,11 +80,11 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 
 ### Overzicht
 
-In ons project hebben we een spel gemaakt waarin de speler de kat kan proberen vangen door op een slimme manier de blokken te plaatsen. Er is een gebruiksvriendelijke interface, waarbij de instellingen zoals het bord size eenvoudig aanpasbaar is. De bedoeling was om door het gebruik van een techniek in machine learning een AI te maken die de kat kan vangen. Dit is ons niet gelukt en daarom hebben we uiteindelijk overgeschakeld naar het minmax algoritme. Deze zal door evaluatiefuncties en zoekdieptelimieten uitzoeken wat de beste zet is om de kat te vangen. 
+In ons project hebben we een spel gemaakt waarin de speler de kat kan proberen vangen door op een slimme manier de blokken te plaatsen. Er is een gebruiksvriendelijke interface, waarbij de instellingen zoals het bord size eenvoudig aanpasbaar is. De bedoeling was om door het gebruik van een techniek in machine learning een AI te maken die de kat kan vangen. Dit is ons niet gelukt en daarom hebben we uiteindelijk overgeschakeld naar het minmax algoritme. Deze zal door evaluatiefuncties en zoekdieptelimieten uitzoeken wat de beste zet is om de kat te vangen.
 
 ### MinMax algoritme
 
-
+We hebben een werkend algoritme. Deze is zeker nog niet optimaal maar is veel sterker in het trappen van de kat tegenover het ML model. Dit algoritme gaat op voor de max (Ai) op zoek naar de maximale beloning, terwijl de min (Kat) de beloning zo klein mogelijk houd. De beloning wordt bepaalt door de afstand van de kat tegenover de rand van het spel. Hoe verder de kat van de rand is hoe hoger de reward. Voor als een kat getrapped wordt krijgt die een reward van 1000, als de kat ontsnapt is het -1000. Bij het algoritme wordt ook alpha-beta pruning gebruikt. Dit zorgt ervoor dat onnodige bewerkingen gebeuren en zo berekeningen efficiënter zijn. Dit doordat de takken van de boom waar er geen betere uitkomst is worden afgebroken.
 
 ### Visualisatie
 
@@ -107,6 +106,8 @@ De kat wordt afgebeeld als een afbeelding van een kat, als deze foto niet gevond
 ![Trapped_cat](./images/trapped_AI.png)
 
 ### Code
+
+De code voegt het spel en het algoritme samen. Voor de kat wordt het A* algoritme gebruikt. Het spelbord wordt dynamisch berekent en is zo zeker ook aanpasbaar. Door het gebruik van threading blijft de interface aanpasbaar en loopt dit niet vast.
 
 #### Libraries
 
