@@ -72,9 +72,7 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 ### 2. MinMax algoritme
 
   Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme.
-  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoritme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken.
-
-
+  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoritme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokked zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnodige berekeningen weg te laten en efficiënter te werken.
 
 ## Resultaat
 
@@ -101,7 +99,7 @@ Is tijdelijk tijdens de evaluatie door het algoritme.
 
 De kat wordt afgebeeld als een afbeelding van een kat, als deze foto niet gevonden wordt dan komt er een blauwe cirkel. De layout zorgt ervoor dat het spelbord altijd gecentreerd staat ook bij het aanpassen van de grote. De visuele effecten geven ook de werking van het minmax algoritme, hierdoor zie je waar het algoritme mee bezig is.
 
-![Startscree](./images/startscreen.png)
+![Startscreen](./images/startscreen.png)
 ![AI_Calculating](./images/AI_bezig.png)
 ![Trapped_cat](./images/trapped_AI.png)
 
@@ -137,6 +135,6 @@ De code voegt het spel en het algoritme samen. Voor de kat wordt het A* algoritm
 
 ---
 
-## Conclusie ** 200 woorden **
+## Conclusie
 
 Als we kijken naar onze doelstellingen dan hebben we zeker een user friendly game die makkelijk verstaanbaar is. Er kan zonder moeilijkheden een spel gespeeld worden en de settings zijn duidelijk. Er is geen ML AI in het spel, dit is de belangrijkste doelstelling en het is niet aanwezig wat zeer jammer is. In plaats daarvan zit er een algoritme in wat werkt maar zeker nog niet optimaal is, hij verliest nog teveel. Een reden waarom we zijn overgeschakeld is omdat bij het leren zoals de start, is er nooit een vaste start wat het niet makkelijk maakt om te leren. Vaak lijkt het ook op elkaar waardoor hij denkt dat hij al iets kent en goed bezig is.
