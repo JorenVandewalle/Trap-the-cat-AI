@@ -57,7 +57,7 @@ Dit project gaat voor het toepassen van Artificial Intelligence en Machine Learn
 
 ---
 
-## Analyse ** 500 woorden **
+## Analyse
 
 ### 1. Reinforced learning
 
@@ -72,11 +72,11 @@ Ons doel eerst was om met Machine Learning te werken, en zo een AI maken die de 
 ### 2. MinMax algoritme
 
   Doordat het niet lukte met de Machine Learning Ai, zijn we overgaan naar een algoritme. Uiteindelijk gebruiken we het MinMax algoritme.
-  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoritme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken. 
+  De reward function van de minmax word geregeld door de afstand van de kat naar de zijkant. Het algoritme zoekt een afstand zo hoog mogelijke binnen de ingestelde diepte. Maar een kat die ingeblokt zit word gezien als een reward van 1000 waardoor deze altijd gekozen word. En een kat die op de rand staat en dus ontsnapt heeft een reward van -1000. Hierbij word ook alpha beta pruning gebruikt om onnedige berekeningen weg te laten en efficienter te werken.
 
 
 
-## Resultaat ** 500 woorden **
+## Resultaat
 
 ### Overzicht
 
@@ -139,4 +139,4 @@ De code voegt het spel en het algoritme samen. Voor de kat wordt het A* algoritm
 
 ## Conclusie ** 200 woorden **
 
-Als we kijken naar onze doelstellingen dan hebben we zeker een user friendly game die makkelijk verstaanbaar is. Er kan zonder moeilijkheden een spel gespeeld worden en de settings zijn duidelijk. Er is geen ML AI in het spel, dit is de belangrijkste doelstelling en het is niet aanwezig wat zeer jammer is. In plaats daarvan zit er een algoritme in wat werkt maar zeker nog niet optimaal is, hij verliest nog teveel.
+Als we kijken naar onze doelstellingen dan hebben we zeker een user friendly game die makkelijk verstaanbaar is. Er kan zonder moeilijkheden een spel gespeeld worden en de settings zijn duidelijk. Er is geen ML AI in het spel, dit is de belangrijkste doelstelling en het is niet aanwezig wat zeer jammer is. In plaats daarvan zit er een algoritme in wat werkt maar zeker nog niet optimaal is, hij verliest nog teveel. Een reden waarom we zijn overgeschakeld is omdat bij het leren zoals de start, is er nooit een vaste start wat het niet makkelijk maakt om te leren. Vaak lijkt het ook op elkaar waardoor hij denkt dat hij al iets kent en goed bezig is.
